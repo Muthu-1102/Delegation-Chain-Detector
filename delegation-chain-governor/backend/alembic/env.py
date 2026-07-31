@@ -19,6 +19,16 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+# Same fix as app/db/session.py, applied here too: Alembic builds its own
+# engine independently of the app's, so the app-side fix does not cover
+# migrations. Supabase's transaction-mode pgbouncer pooler (port 6543)
+# reuses one physical connection across unrelated sessions; asyncpg's
+# per-connection prepared-statement cache then collides across them,
+# raising DuplicatePreparedStatementError. Disable it here as well.
+_connect_args = {}
+if ":6543" in settings.DATABASE_URL:
+    _connect_args = {"statement_cache_size": 0, "prepared_statement_cache_size": 0}
+
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
@@ -38,6 +48,7 @@ async def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=_connect_args,
     )
 
     async with connectable.connect() as connection:

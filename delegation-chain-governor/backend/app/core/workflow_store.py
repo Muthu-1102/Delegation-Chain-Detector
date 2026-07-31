@@ -1,44 +1,80 @@
 """
-Lightweight in-memory workflow registry.
+Workflow status store, persisted in Postgres (`workflow_records`).
 
-Tracks the latest known state of each in-flight/completed request so that
-GET /api/workflow/{request_id} has something to return without requiring a
-round trip through LangGraph checkpointing. The durable, queryable record of
-delegation hops lives in Postgres (`delegation_logs`, `execution_logs`) via
-app.core.audit -- this store is just a fast-path cache.
+This used to be an in-memory dict guarded by a threading.Lock. That meant:
+  - a container restart silently lost every workflow's status
+  - running more than one backend replica gave each replica its own,
+    inconsistent view of workflow state
+  - a request that landed on replica A but polled against replica B would
+    get 404s
+
+All functions now take an AsyncSession and only `flush()` -- the caller
+owns the transaction boundary (commit/rollback), consistent with
+app.core.audit's convention.
 """
 
 from __future__ import annotations
 
-import threading
+import uuid
+from datetime import datetime, timezone
 from typing import Any
 
-_lock = threading.Lock()
-_workflows: dict[str, dict[str, Any]] = {}
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.tables import WorkflowRecord
 
 
-def create(request_id: str, query: str) -> None:
-    with _lock:
-        _workflows[request_id] = {
-            "request_id": request_id,
-            "query": query,
-            "status": "running",
-            "current_agent": "gateway_agent",
-            "plan": None,
-            "finance_result": None,
-            "report_result": None,
-            "error": None,
-            "escalation": None,   # NEW
-            "note": None,  
-        }
+async def create(db: AsyncSession, request_id: str, query: str) -> None:
+    now = datetime.now(timezone.utc)
+    db.add(
+        WorkflowRecord(
+            request_id=uuid.UUID(request_id),
+            query=query,
+            status="running",
+            current_agent="gateway_agent",
+            plan=None,
+            finance_result=None,
+            report_result=None,
+            error=None,
+            escalation=None,
+            note=None,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    await db.flush()
 
 
-def update(request_id: str, **fields: Any) -> None:
-    with _lock:
-        if request_id in _workflows:
-            _workflows[request_id].update(fields)
+async def update(db: AsyncSession, request_id: str, **fields: Any) -> None:
+    result = await db.execute(
+        select(WorkflowRecord).where(WorkflowRecord.request_id == uuid.UUID(request_id))
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        return
+    for key, value in fields.items():
+        setattr(record, key, value)
+    record.updated_at = datetime.now(timezone.utc)
+    await db.flush()
 
 
-def get(request_id: str) -> dict[str, Any] | None:
-    with _lock:
-        return _workflows.get(request_id)
+async def get(db: AsyncSession, request_id: str) -> dict[str, Any] | None:
+    result = await db.execute(
+        select(WorkflowRecord).where(WorkflowRecord.request_id == uuid.UUID(request_id))
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        return None
+    return {
+        "request_id": str(record.request_id),
+        "query": record.query,
+        "status": record.status,
+        "current_agent": record.current_agent,
+        "plan": record.plan,
+        "finance_result": record.finance_result,
+        "report_result": record.report_result,
+        "error": record.error,
+        "escalation": record.escalation,
+        "note": record.note,
+    }
