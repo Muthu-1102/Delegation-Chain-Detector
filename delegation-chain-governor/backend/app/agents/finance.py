@@ -1,19 +1,8 @@
-"""
-Finance Agent.
-
-Consumes the token delegated by the Planner Agent. Requires 'finance:read'
-scope; will refuse to run without it. Produces a finance result and then
-attempts to delegate onward to the Report Agent. If that delegation would
-exceed the scope Finance itself holds, the workflow does NOT crash --
-it pauses in a "pending_approval" state so a human can decide whether to
-grant an explicit override or deny the request.
-"""
-
 from __future__ import annotations
 
 from app.agents.llm import complete
 from app.agents.state import DelegationState
-from app.core.governor import ScopeEscalationError, governor
+from app.core.governor import ScopeEscalationError, ScopePermissionError, governor
 
 AGENT_NAME = "finance_agent"
 REQUIRED_SCOPE = "finance:read"
@@ -28,12 +17,10 @@ SYSTEM_PROMPT = (
 async def run(state: DelegationState) -> DelegationState:
     token = governor.verify(state["token"])
 
-    if REQUIRED_SCOPE not in token.scope:
-        return {
-            **state,
-            "status": "failed",
-            "error": f"finance_agent missing required scope '{REQUIRED_SCOPE}'",
-        }
+    try:
+        governor.enforce(token, REQUIRED_SCOPE)
+    except ScopePermissionError as exc:
+        return {**state, "status": "failed", "error": str(exc)}
 
     result = await complete(SYSTEM_PROMPT, state["plan"])
     requested_scope = ["report:generate"]
@@ -45,9 +32,6 @@ async def run(state: DelegationState) -> DelegationState:
             requested_scope=requested_scope,
         )
     except ScopeEscalationError as exc:
-        # Blocked delegation -> pause, don't crash. The Governor caught a
-        # real scope-escalation attempt; surface it as a decision for a
-        # human instead of an unhandled exception.
         return {
             **state,
             "finance_result": result,
@@ -68,4 +52,5 @@ async def run(state: DelegationState) -> DelegationState:
         "finance_result": result,
         "token": delegated_token.encoded,
         "scope": delegated_token.scope,
+        "token_chain": [*state.get("token_chain", []), governor.to_public_dict(delegated_token)],
     }

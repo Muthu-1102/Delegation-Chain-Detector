@@ -12,6 +12,7 @@ from datetime import datetime
 from sqlalchemy import Float, ForeignKey, String, Text, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import Float, ForeignKey, Integer, String, Text, DateTime
 
 
 class Base(DeclarativeBase):
@@ -37,16 +38,20 @@ class Permission(Base):
 
     user: Mapped["User"] = relationship(back_populates="permissions")
 
-
 class DelegationTokenRecord(Base):
     __tablename__ = "delegation_tokens"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    parent_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    parent_token: Mapped[str | None] = mapped_column(Text, nullable=True)  # parent's jwt_id
     jwt_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     scope: Mapped[str] = mapped_column(Text, nullable=False)
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    task_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    agent: Mapped[str] = mapped_column(Text, nullable=False)
+    origin_user: Mapped[str] = mapped_column(Text, nullable=False)
+    max_scope: Mapped[str] = mapped_column(Text, nullable=False)
+    depth: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 class DelegationLog(Base):

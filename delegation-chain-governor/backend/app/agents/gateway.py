@@ -1,11 +1,3 @@
-"""
-Gateway Agent.
-
-Entry point for every user request. Responsible for:
-  - Issuing the root delegation token (full scope granted to the requesting user)
-  - Handing the request off to the Planner Agent through the Governor
-"""
-
 from __future__ import annotations
 
 from app.agents.state import DelegationState
@@ -18,6 +10,8 @@ async def run(state: DelegationState) -> DelegationState:
     root_token = governor.issue_root_token(
         agent=AGENT_NAME,
         scope=["finance:read", "finance:report", "report:generate"],
+        task_id=state["request_id"],
+        origin_user=state.get("origin_user", "anonymous"),
     )
 
     return {
@@ -25,4 +19,5 @@ async def run(state: DelegationState) -> DelegationState:
         "token": root_token.encoded,
         "scope": root_token.scope,
         "status": "running",
+        "token_chain": [governor.to_public_dict(root_token)],
     }

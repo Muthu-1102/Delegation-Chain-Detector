@@ -40,4 +40,5 @@ async def run(state: DelegationState) -> DelegationState:
         "plan": plan,
         "token": delegated_token.encoded,
         "scope": delegated_token.scope,
+        "token_chain": [*state.get("token_chain", []), governor.to_public_dict(delegated_token)],
     }

@@ -14,9 +14,9 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-
 class QueryRequest(BaseModel):
     query: str
+    user: str = "anonymous"
 
 
 class QueryResponse(BaseModel):
@@ -55,9 +55,11 @@ class DelegationLogEntry(BaseModel):
     timestamp: str
 
 
+
 class AuditResponse(BaseModel):
     request_id: str
-    chain: list[DelegationLogEntry]
+    chain: list[TokenChainEntry]
+    decisions: list[DelegationLogEntry]
 
 
 class ExecutionLogEntry(BaseModel):
@@ -71,3 +73,13 @@ class ExecutionLogEntry(BaseModel):
 class HealthResponse(BaseModel):
     status: str = "ok"
     service: str = "delegation-chain-governor"
+
+class TokenChainEntry(BaseModel):
+    agent: str
+    parent_agent: str | None
+    scope: list[str]
+    max_scope: list[str]
+    depth: int
+    origin_user: str
+    issued_at: str
+    expires_at: str

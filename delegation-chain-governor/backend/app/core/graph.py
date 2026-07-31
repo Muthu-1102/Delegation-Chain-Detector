@@ -49,12 +49,14 @@ def build_graph():
 compiled_graph = build_graph()
 
 
-async def run_workflow(request_id: str, query: str) -> DelegationState:
+async def run_workflow(request_id: str, query: str, origin_user: str = "anonymous") -> DelegationState:
     initial_state: DelegationState = {
         "request_id": request_id,
+        "origin_user": origin_user,
         "query": query,
         "status": "running",
         "error": None,
+        "token_chain": [],
     }
     final_state: DelegationState = await compiled_graph.ainvoke(initial_state)
     return final_state

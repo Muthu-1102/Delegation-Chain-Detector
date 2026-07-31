@@ -13,11 +13,12 @@ export default function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
   const pollRef = useRef(null);
+  const [auditDecisions, setAuditDecisions] = useState([]);
 
   const refreshAudit = async (requestId) => {
-    const audit = await getAuditTrail(requestId);
-    setAuditChain(audit.chain);
-  };
+  const audit = await getAuditTrail(requestId);
+  setAuditChain(audit.chain);
+  setAuditDecisions(audit.decisions);};
 
   const pollStatus = (requestId) => {
     clearInterval(pollRef.current);
@@ -38,6 +39,7 @@ export default function App() {
   const handleSubmit = async (query) => {
     setIsRunning(true);
     setAuditChain([]);
+    setAuditDecisions([]);
     const { request_id, status } = await submitQuery(query);
     setWorkflow({ request_id, status, current_agent: "gateway_agent" });
     pollStatus(request_id);
@@ -100,3 +102,4 @@ export default function App() {
     </div>
   );
 }
+

@@ -342,3 +342,13 @@ body {
   font-style: italic;
   font-size: 0.88rem;
 }
+
+.audit-log__subtitle {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink-500);
+  margin: 1rem 0 0.6rem;
+}
+.audit-log__subtitle:first-child { margin-top: 0; }
