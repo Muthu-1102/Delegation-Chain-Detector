@@ -83,6 +83,12 @@ export default function App() {
 
             {workflow.note && <div className="app__note">{workflow.note}</div>}
 
+            {workflow.error && (
+              <div className="app__note" style={{ color: "var(--danger-500, #ef4444)" }}>
+                ⚠️ {workflow.error}
+              </div>
+            )}
+
             <EscalationBanner
               escalation={workflow.escalation}
               isResolving={isResolving}
@@ -96,7 +102,7 @@ export default function App() {
       <section className="app__section">
         <h2>Delegation Audit Trail</h2>
         <div className="card">
-          <AuditLog chain={auditChain} />
+          <AuditLog chain={auditChain} decisions={auditDecisions} />
         </div>
       </section>
     </div>

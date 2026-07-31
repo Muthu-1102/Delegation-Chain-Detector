@@ -22,7 +22,7 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     request_id: str
     status: str
-  # add this import at the top
+
 
 class EscalationInfo(BaseModel):
     parent_agent: str
@@ -55,6 +55,16 @@ class DelegationLogEntry(BaseModel):
     timestamp: str
 
 
+class TokenChainEntry(BaseModel):
+    agent: str
+    parent_agent: str | None
+    scope: list[str]
+    max_scope: list[str]
+    depth: int
+    origin_user: str
+    issued_at: str
+    expires_at: str
+
 
 class AuditResponse(BaseModel):
     request_id: str
@@ -72,14 +82,4 @@ class ExecutionLogEntry(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = "ok"
-    service: str = "delegation-chain-governor"
-
-class TokenChainEntry(BaseModel):
-    agent: str
-    parent_agent: str | None
-    scope: list[str]
-    max_scope: list[str]
-    depth: int
-    origin_user: str
-    issued_at: str
-    expires_at: str
+    service: str = "delegation-chain-governor"
