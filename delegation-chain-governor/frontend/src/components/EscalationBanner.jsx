@@ -36,14 +36,14 @@ export default function EscalationBanner({ escalation, onGrant, onDeny, isResolv
           onClick={onGrant}
           disabled={isResolving}
         >
-          Grant elevated access
+          Retrict the Extra Access and Continue
         </button>
         <button
           className="escalation__button escalation__button--deny"
           onClick={onDeny}
           disabled={isResolving}
         >
-          Deny & finish without it
+          Abort the Process
         </button>
       </div>
     </div>
